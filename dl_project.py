@@ -63,37 +63,37 @@ print("Baseline MAE:", mean_absolute_error(y_test, baseline_preds))
 
 # 4. Attention Layer
 
-class AttentionLayer(layers.Layer):
-    def __init__(self):
-        super(AttentionLayer, self).__init__()
+class AttentionLayer(tf.keras.layers.Layer):
+    def __init__(self, units):
+        super().__init__()
+        self.W1 = layers.Dense(units)
+        self.W2 = layers.Dense(units)
+        self.V = layers.Dense(1)
 
-    def build(self, input_shape):
-        self.W = self.add_weight(name="att_weight", shape=(input_shape[-1], 1),
-                                 initializer="normal")
-        self.b = self.add_weight(name="att_bias", shape=(input_shape[1], 1),
-                                 initializer="zeros")
+    def call(self, features):
+        score = self.V(tf.nn.tanh(self.W1(features)))
+        attention_weights = tf.nn.softmax(score, axis=1)
+        context_vector = attention_weights * features
+        context_vector = tf.reduce_sum(context_vector, axis=1)
+        return context_vector, attention_weights
 
-    def call(self, x):
-        e = tf.nn.tanh(tf.matmul(x, self.W) + self.b)
-        a = tf.nn.softmax(e, axis=1)
-        output = x * a
-        return tf.reduce_sum(output, axis=1)
 
 
 # 5. Attention-Augmented Model
 
 def build_attention_model(trial):
     units = trial.suggest_int("units", 32, 128)
-    dropout = trial.suggest_float("dropout", 0.1, 0.5)
 
     inputs = layers.Input(shape=(window_size, 1))
     lstm_out = layers.LSTM(units, return_sequences=True)(inputs)
-    att_out = AttentionLayer()(lstm_out)
-    dense_out = layers.Dense(1)(att_out)
 
-    model = models.Model(inputs=inputs, outputs=dense_out)
+    context, att_weights = AttentionLayer(units)(lstm_out)
+    outputs = layers.Dense(1)(context)
+
+    model = models.Model(inputs, outputs)
     model.compile(optimizer="adam", loss="mse")
     return model
+
 
 
 # 6. Hyperparameter Optimization
@@ -124,10 +124,13 @@ print("Attention MAE:", mean_absolute_error(y_test, final_preds))
 
 # Visualize Attention Weights
 
-attention_model = models.Model(inputs=final_model.input,
-                               outputs=final_model.layers[2].output)
+attention_extractor = models.Model(
+    inputs=final_model.input,
+    outputs=final_model.layers[2].output[1])
 
-att_weights = attention_model.predict(X_test[:1])
-plt.plot(att_weights[0])
-plt.title("Attention Weights for First Test Sample")
+weights = attention_extractor.predict(X_test[:1])
+plt.plot(weights[0].squeeze())
+plt.xlabel("Time Step")
+plt.ylabel("Attention Weight")
+plt.title("Temporal Attention Distribution")
 plt.show()
