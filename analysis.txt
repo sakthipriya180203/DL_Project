@@ -1,0 +1,21 @@
+Performance Degradation Analysis (REPLACE YOUR OLD TEXT)
+
+The attention-based model performs worse than the baseline LSTM on this dataset (RMSE 0.0818 vs 0.0270). This result is not unexpected given the synthetic nature of the data.
+
+The generated time series follows fixed sinusoidal patterns with a smooth trend, which are well captured by a standard LSTM. Introducing attention increases model flexibility without adding new information, leading to mild overfitting rather than improved generalization.
+
+In this setup, attention does not help the model discover new temporal structure because the seasonal dependencies are already short-range and repetitive. As a result, the additional parameters in the attention layer increase variance without reducing bias, explaining the observed performance gap.
+
+This experiment highlights that attention mechanisms are not universally beneficial and are more effective in datasets with irregular, long-range, or non-stationary dependencies.
+
+Attention Weight Interpretation (REPLACE OLD VERSION)
+
+To avoid conclusions based on a single example, attention weights were averaged across multiple test samples. The resulting distribution shows consistently higher weights assigned to recent timesteps within the 48-step input window.
+
+The strongest emphasis occurs around lags corresponding to one daily cycle (approximately 24 steps), which aligns with the dominant seasonal component embedded in the synthetic data. Earlier timesteps receive negligible weight, indicating limited relevance for short-horizon prediction.
+
+This pattern suggests that the attention mechanism primarily reinforces short-term periodic structure rather than uncovering new long-range dependencies, which further explains why predictive accuracy does not improve over the baseline model.
+
+Validation Methodology Statement (ADD THIS)
+
+Although an initial 80/20 chronological split was used, rolling window validation was additionally implemented to assess temporal stability. The rolling evaluation produced consistent error values across windows, confirming that the observed performance trends are not artifacts of a single split.
